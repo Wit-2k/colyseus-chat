@@ -53,3 +53,26 @@ docker run -d --name chat-server --network chat-net --restart unless-stopped col
 - 本仓库 `access/ConnectionTest.ts` 可以快速验证域名是否可访问：
   `bun run access/ConnectionTest.ts go-comm.space`
 - 容器日志：`docker logs -f chat-server`
+
+## 常见问题（这台机器上的网络限制）
+
+**1. 拉不到基础镜像**，报 `docker.io/oven/bun:1: not found`
+
+主机直连 Docker Hub 不通（阿里云加速器里也没有这个镜像）。用可达的镜像源拉一次再打个同名标签就行，
+不用改 Dockerfile：
+
+```bash
+docker pull docker.m.daocloud.io/oven/bun:1
+docker tag docker.m.daocloud.io/oven/bun:1 oven/bun:1
+```
+
+**2. `git clone` / `git pull` GitHub 失败**，报 `HTTP2 framing layer` 或 `GnuTLS recv error (-110)`
+
+先试 `git config --global http.version HTTP/1.1`。仍然失败的话，就在本机打包后经 SSH 上传
+（排掉 `node_modules`、`dist`、`build`，然后解压到主机 `/root/colyseus-chat`）：
+
+```bash
+tar czf repo.tgz --exclude=node_modules --exclude='*/node_modules' \
+  --exclude=client/dist --exclude=server/build --exclude=shared/dist .
+scp repo.tgz aliyun:/root/ && ssh aliyun 'rm -rf /root/colyseus-chat && mkdir -p /root/colyseus-chat && tar xzf /root/repo.tgz -C /root/colyseus-chat'
+```

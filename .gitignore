@@ -1,0 +1,5 @@
+node_modules
+.bun
+
+# shared 的编译产物（构建时生成，源码在 shared/*.ts）
+shared/dist

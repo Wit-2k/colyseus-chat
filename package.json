@@ -1,0 +1,17 @@
+{
+  "name": "colyseus-chat",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Colyseus + Svelte 聊天室（monorepo：shared / server / client）",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "bun run --filter @colyseus-chat/shared build && bun run --filter server build && bun run --filter client build",
+    "test": "bun run --filter server test",
+    "typecheck": "bun run --filter @colyseus-chat/shared typecheck && bun run --filter server typecheck && bun run --filter client check"
+  }
+}

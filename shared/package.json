@@ -1,0 +1,25 @@
+{
+  "name": "@colyseus-chat/shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/zodSchemas.js",
+  "types": "./dist/zodSchemas.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/zodSchemas.d.ts",
+      "import": "./dist/zodSchemas.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

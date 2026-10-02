@@ -1,0 +1,13 @@
+# bun 安装依赖的方式：hoisted（扁平的 node_modules，行为跟 npm 一样）
+#
+# 为什么必须显式写出来：bun 在 workspace 场景下默认用 isolated 布局 —— 每个包的依赖
+# 集合各自放一份。曾经在 Docker 镜像里因此把 @colyseus/core 装成了两份物理副本：
+#   @colyseus/tools（matchmaking，负责创建房间）用一份
+#   @colyseus/ws-transport（客户端连进来时负责查房间）用另一份
+# 两份 = 两个 MatchMaker 实例 = 房间注册表分裂。现象很有迷惑性：matchmaking 返回 200、
+# WebSocket 也升级成功（101），但服务端查不到刚创建的房间，直接报
+# "seat reservation expired"，客户端就一直连不上。
+#
+# 扁平布局下同一个包只留一份，@colyseus/core 全局唯一，问题消失。
+[install]
+linker = "hoisted"

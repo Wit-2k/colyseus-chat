@@ -11,7 +11,7 @@ FROM oven/bun:1
 WORKDIR /app
 
 # 先只复制依赖清单，让"装依赖"这一层能被 Docker 缓存（改代码时不用重装）
-COPY package.json bun.lock ./
+COPY package.json bun.lock bunfig.toml ./
 COPY shared/package.json shared/
 COPY server/package.json server/
 COPY client/package.json client/

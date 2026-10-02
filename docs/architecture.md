@@ -114,6 +114,10 @@ app.use(express.static(fileURLToPath(new URL("../../client/dist", import.meta.ur
 - 服务端地址的解析顺序：`VITE_SERVER_URL` → 开发环境 `ws://localhost:2567` → 生产环境
   `window.location.origin`。SDK 会把 `https://` 自动换成 `wss://` 并保留路径，所以生产环境不需要额外配置。
 - 发送前用 `ChatPayloadSchema.safeParse` 本地校验；输入框 `maxlength` 用的是同一个 `MAX_MESSAGE_LENGTH`。
+- **手机适配**：`#app` 用 `100dvh`（手机上地址栏收放、软键盘弹出时不会把输入区顶出屏幕），面板留白用
+  `env(safe-area-inset-*)` 避开刘海和底部横条（配 `index.html` 里的 `viewport-fit=cover`）；
+  ≤480px 时收窄留白、气泡放宽到 92%、输入框和按钮撑到 44px 触控高度、长昵称标签截断，
+  `.messages` 加 `overscroll-behavior: contain` 防止滑到底时把整页带着弹；矮屏（横屏手机）再压一档留白。
 
 ## 5. 开发流程与质量门禁
 

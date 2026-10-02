@@ -1,4 +1,4 @@
-/* 聊天室样式：一套浅色 + 一套深色（跟随系统） */
+/* 聊天室样式：一套浅色 + 一套深色（跟随系统），最后是一段手机适配 */
 
 :root {
   --bg: #f5f6f8;
@@ -15,8 +15,9 @@
 
   color-scheme: light dark;
   font-family: system-ui, "Segoe UI", "Microsoft YaHei", sans-serif;
-  font-size: 16px;
+  font-size: 16px; /* 输入框继承这个字号：小于 16px 时 iOS 聚焦会自动放大页面 */
   line-height: 1.5;
+  -webkit-text-size-adjust: 100%; /* 横屏时 iOS 不要自作主张放大字体 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -46,7 +47,9 @@ body {
 }
 
 #app {
+  /* dvh：手机浏览器地址栏收放、软键盘弹出时，100vh 会把底部内容顶出屏幕 */
   height: 100vh;
+  height: 100dvh;
   display: flex;
   justify-content: center;
 }
@@ -58,6 +61,11 @@ body {
   width: 100%;
   max-width: 720px;
   padding: 16px;
+  /* 刘海屏 / 底部横条留白（不支持的浏览器用上面的 padding 兜底） */
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-right: max(16px, env(safe-area-inset-right));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding-left: max(16px, env(safe-area-inset-left));
   gap: 12px;
   min-height: 0; /* 让内部的滚动区域能正确收缩 */
 }
@@ -126,6 +134,7 @@ header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  gap: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
@@ -133,6 +142,7 @@ header {
 .me {
   color: var(--muted);
   font-size: 0.875rem;
+  white-space: nowrap;
 }
 
 /* 在线成员列表 */
@@ -143,9 +153,14 @@ header {
 }
 
 .chip {
+  /* 昵称最长 20 字，窄屏上要截断，否则一行标签会把面板撑宽 */
+  max-width: 12em;
+  overflow: hidden;
   padding: 2px 10px;
   font-size: 0.8125rem;
   color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background: var(--bubble);
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -165,6 +180,8 @@ header {
   flex-direction: column;
   gap: 10px;
   padding: 4px;
+  /* 滑到顶/底时不要让整页跟着弹 */
+  overscroll-behavior: contain;
 }
 
 .empty {
@@ -201,6 +218,7 @@ article.mine {
   border-radius: 12px;
   white-space: pre-wrap; /* 保留换行，长文本自动折行 */
   word-break: break-word;
+  overflow-wrap: anywhere; /* 超长链接之类不撑破气泡 */
 }
 
 article.mine .text {
@@ -217,6 +235,7 @@ article.mine .text {
 
 .compose input {
   flex: 1;
+  min-width: 0; /* 不加的话 flex 子项会被内容撑宽，窄屏上把按钮挤出去 */
 }
 
 .count {
@@ -229,4 +248,48 @@ article.mine .text {
   margin: 0;
   color: var(--error);
   font-size: 0.875rem;
+}
+
+/* ---------- 手机适配 ---------- */
+@media (max-width: 480px) {
+  .chat {
+    padding: 12px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-left: max(12px, env(safe-area-inset-left));
+    gap: 10px;
+  }
+
+  .join {
+    padding: 20px;
+  }
+
+  /* 触控目标：手指按得准（Apple 44px / Material 48dp） */
+  input,
+  button {
+    min-height: 44px;
+  }
+
+  /* 窄屏上给气泡更多宽度，少折几行 */
+  article {
+    max-width: 92%;
+  }
+
+  .compose {
+    gap: 6px;
+  }
+
+  .count {
+    font-size: 0.6875rem;
+  }
+}
+
+/* 手机横屏时高度很紧张，把留白再压一压，保证输入框和消息都看得见 */
+@media (max-height: 480px) {
+  .chat {
+    gap: 8px;
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
 }

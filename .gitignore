@@ -6,3 +6,6 @@ shared/dist
 
 # 云主机的连接信息：只留在本地，不进（公开的）仓库
 REMOTE.md
+
+# GitHub 登录用的临时输出（跑 gh auth login 时产生）
+gh-login.out

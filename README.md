@@ -54,33 +54,30 @@
 - 昵称、消息内容都用共享配方（`@colyseus-chat/shared`）在本地先校验一次，规则与服务器完全一致；
   输入框也用了同一个 `MAX_MESSAGE_LENGTH` 限制长度。
 
-服务器地址默认是 `ws://localhost:2567`，部署时用环境变量覆盖（Vite 要求 `VITE_` 前缀）：
+服务器地址默认是 `ws://localhost:2567`（开发）／当前页面地址（生产，前后端同源），
+**通常不需要配置**。只有想把前端连到另一台服务器时才用环境变量覆盖（Vite 要求 `VITE_` 前缀）：
 
 ```bash
-# client/.env.production
-VITE_SERVER_URL=wss://你的域名
+# client/.env.local
+VITE_SERVER_URL=wss://另一台服务器
 ```
 
-## 部署（服务器）
+## 部署
 
-`server` 编译产物是 `server/build/`，入口 `server/build/index.js`：
+线上是**同源部署**：nginx 只做 TLS 终止 + 反向代理，页面静态文件和 WebSocket 都由
+Colyseus 服务提供（`chat-server` 容器）。这样 nginx 不用区分静态资源和 ws 请求 ——
+Colyseus 的 matchmaking 和 WebSocket 都在根路径上，本来就没法跟静态站并存。
+
+- 容器定义：根目录 `Dockerfile`（镜像内依次构建 shared → server → client）
+- 站点配置：`deploy/nginx/go-comm.space.conf`（整站反代到 `chat-server:2567`）
+- 首次部署与更新步骤：见 [`deploy/README.md`](deploy/README.md)
+
+本地想验证生产形态（页面和服务器同源）：
 
 ```bash
-bun install                 # 仓库根目录
-bun run --filter server build
-node server/build/index.js  # 生产环境默认监听 2567，可用 PORT 覆盖
+bun run build
+NODE_ENV=production node server/build/index.js   # 打开 http://localhost:2567 就是构建后的页面
 ```
 
-注意：因为是 monorepo，部署时要把整个仓库拉过去（`server` 依赖根目录 `node_modules`
-里的 `@colyseus-chat/shared`），不能只拷 `server` 目录。
-
-## 部署（前端）
-
-`client` 编译产物是纯静态文件 `client/dist/`，用 nginx / Caddy 之类的静态服务器托管即可
-（先设置好 `VITE_SERVER_URL` 再打包，否则前端会去连 `ws://localhost:2567`）：
-
-```bash
-VITE_SERVER_URL=wss://你的域名 bun run --filter client build
-```
-
-生产环境建议给服务器配 HTTPS/WSS，否则浏览器会拦掉从 https 页面连出去的 ws 请求。
+注意：因为是 monorepo，构建和部署都要带上整个仓库（`server` 依赖 `shared` 与根目录的
+`node_modules` 布局），不能只拷 `server` 目录。

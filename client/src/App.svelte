@@ -7,8 +7,14 @@
     MAX_NAME_LENGTH,
   } from "@colyseus-chat/shared";
 
-  // 服务器地址：本地默认连本机 2567；部署时设置 VITE_SERVER_URL（比如 wss://你的域名）
-  const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? "ws://localhost:2567";
+  // 服务器地址：
+  //   - 生产环境前后端同源（页面本身由 Colyseus 托管），直接用当前页面的地址即可，
+  //     SDK 会自动把 https:// 换成 wss://
+  //   - 本地开发时前端在 5173、服务器在 2567，得显式指定
+  // 想连到别的服务器时，用 VITE_SERVER_URL 覆盖（构建时注入）
+  const SERVER_URL =
+    import.meta.env.VITE_SERVER_URL ??
+    (import.meta.env.DEV ? "ws://localhost:2567" : window.location.origin);
 
   // 房间名要和服务器 server/src/app.config.ts 里注册的保持一致
   const ROOM_NAME = "my_room";

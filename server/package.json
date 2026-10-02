@@ -12,7 +12,7 @@
     "start": "tsx watch src/index.ts",
     "loadtest": "tsx loadtest/example.ts --room my_room --numClients 2",
     "prebuild": "cd ../shared && bun run build",
-    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "build": "rimraf build && tsc -p tsconfig.build.json",
     "clean": "rimraf build",
     "pretest": "cd ../shared && bun run build",
     "test": "mocha -r tsx test/**.test.ts --exit --timeout 15000",

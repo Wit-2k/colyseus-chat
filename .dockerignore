@@ -1,0 +1,17 @@
+# 构建上下文里不需要的东西（镜像里会重新装依赖、重新构建）
+node_modules
+**/node_modules
+.git
+.vite-hooks
+.vscode
+
+# 构建产物一律在镜像内重新生成
+client/dist
+server/build
+shared/dist
+
+# 和线上运行无关的本地文件
+access
+REMOTE.md
+Check-Port.ps1
+*.log

@@ -118,6 +118,10 @@ app.use(express.static(fileURLToPath(new URL("../../client/dist", import.meta.ur
   `env(safe-area-inset-*)` 避开刘海和底部横条（配 `index.html` 里的 `viewport-fit=cover`）；
   ≤480px 时收窄留白、气泡放宽到 92%、输入框和按钮撑到 44px 触控高度、长昵称标签截断，
   `.messages` 加 `overscroll-behavior: contain` 防止滑到底时把整页带着弹；矮屏（横屏手机）再压一档留白。
+- **整页不滚动**：`html` / `body` / `#app` / `.chat` 都是 `overflow: hidden`，滚动只发生在消息列表内部
+  （`.messages` 自带 `overflow-y: auto`），表单卡片在极端矮屏下自己滚；`viewport` 里声明
+  `interactive-widget=resizes-content`，让安卓软键盘弹出时**收缩内容区**而不是平移整页。
+  少了这条，聚焦输入框时浏览器会把整页推着上下滚（安卓 Edge 上实测就是这样）。
 
 ## 5. 开发流程与质量门禁
 

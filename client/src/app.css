@@ -40,16 +40,26 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
+  /* 整体不滚动：聊天室是固定高度的面板，滚动只发生在消息列表内部。
+     手机上因此不会出现整页上下拖动（也顺带关掉了下拉刷新） */
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 #app {
   /* dvh：手机浏览器地址栏收放、软键盘弹出时，100vh 会把底部内容顶出屏幕 */
   height: 100vh;
   height: 100dvh;
+  overflow: hidden;
   display: flex;
   justify-content: center;
 }
@@ -68,6 +78,7 @@ body {
   padding-left: max(16px, env(safe-area-inset-left));
   gap: 12px;
   min-height: 0; /* 让内部的滚动区域能正确收缩 */
+  overflow: hidden; /* 只在各自区域里滚（消息列表 / 表单卡片），面板本身不滚 */
 }
 
 /* ---------- 进入房间的表单 ---------- */
@@ -78,6 +89,10 @@ body {
   gap: 10px;
   width: 100%;
   max-width: 360px;
+  /* 矮屏或系统字号特别大时，让卡片自己滚动，也不要整页跟着滚 */
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 24px;
   background: var(--panel);
   border: 1px solid var(--border);

@@ -3,7 +3,11 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 
 import appConfig from "../src/app.config.js";
 import type { MyRoomState } from "../src/rooms/schema/MyRoomState.js";
-import { MAX_MESSAGE_LENGTH } from "@colyseus-chat/shared";
+import {
+  MAX_MESSAGE_LENGTH,
+  type PrivateMessage,
+  type PrivateMessageError,
+} from "@colyseus-chat/shared";
 
 describe("MyRoom 聊天室", () => {
   let colyseus: ColyseusTestServer<typeof appConfig>;
@@ -126,5 +130,76 @@ describe("MyRoom 聊天室", () => {
     await leavePatch;
 
     assert.deepStrictEqual(Array.from(alice.state.members.keys()), [alice.sessionId]);
+  });
+
+  it("私聊只发给双方，不写进公共历史", async () => {
+    const room = await colyseus.createRoom<MyRoomState>("my_room", {});
+    const alice = await colyseus.connectTo(room, { name: "Alice" });
+    const bob = await colyseus.connectTo(room, { name: "Bob" });
+    const carol = await colyseus.connectTo(room, { name: "Carol" });
+
+    const deliveredToBob = Promise.withResolvers<PrivateMessage>();
+    const deliveredToAlice = Promise.withResolvers<PrivateMessage>();
+    const carolInbox: PrivateMessage[] = [];
+    bob.onMessage("dm", deliveredToBob.resolve);
+    alice.onMessage("dm", deliveredToAlice.resolve);
+    carol.onMessage("dm", (message: PrivateMessage) => carolInbox.push(message));
+
+    alice.send("dm", { to: bob.sessionId, text: "  只给你看  " });
+    // 双方各收到一份，两条都等到再断言
+    const [received, echo] = await Promise.all([deliveredToBob.promise, deliveredToAlice.promise]);
+
+    assert.strictEqual(received.text, "只给你看", "首尾空白应被 trim");
+    assert.strictEqual(received.from, alice.sessionId);
+    assert.strictEqual(received.fromName, "Alice", "昵称以服务端记录为准");
+    assert.strictEqual(received.to, bob.sessionId);
+    assert.strictEqual(typeof received.timestamp, "number");
+
+    // 发送者自己也收到一份（回执）：前端用它拿到服务器时间戳，不做"本地先显示"
+    assert.deepStrictEqual(echo, received);
+
+    // 房间里没被选中的第三方收不到，公共历史里也不该出现
+    assert.strictEqual(carolInbox.length, 0, "私聊不能泄露给房间里其他人");
+    assert.strictEqual(room.state.messages.length, 0, "私聊不写进公共历史");
+  });
+
+  it("对方已经离开房间时，发送者收到 dm_error", async () => {
+    const room = await colyseus.createRoom<MyRoomState>("my_room", {});
+    const alice = await colyseus.connectTo(room, { name: "Alice" });
+    const bob = await colyseus.connectTo(room, { name: "Bob" });
+
+    await bob.leave();
+
+    const inbox: PrivateMessage[] = [];
+    alice.onMessage("dm", (message: PrivateMessage) => inbox.push(message));
+
+    const failure = Promise.withResolvers<PrivateMessageError>();
+    alice.onMessage("dm_error", failure.resolve);
+    alice.send("dm", { to: bob.sessionId, text: "还在吗" });
+
+    assert.deepStrictEqual(await failure.promise, { to: bob.sessionId, reason: "offline" });
+    assert.strictEqual(inbox.length, 0, "对方不在时不应该再投递私聊");
+  });
+
+  it("发给自己或格式不对的私聊会被丢弃", async () => {
+    const room = await colyseus.createRoom<MyRoomState>("my_room", {});
+    const alice = await colyseus.connectTo(room, { name: "Alice" });
+
+    const inbox: unknown[] = [];
+    alice.onMessage("dm", (message: unknown) => inbox.push(message));
+
+    alice.send("dm", { to: alice.sessionId, text: "自言自语" }); // 发给自己
+    alice.send("dm", { to: "", text: "收件人为空" }); // 收件人为空
+    alice.send("dm", { to: alice.sessionId, text: "   " }); // 正文全空白
+    alice.send("dm", { to: 42, text: "收件人类型不对" }); // 类型不对
+    alice.send("dm", null); // 整个载荷为 null
+
+    // 拿一条公共消息当"水位线"：它同步回来时，前面这些 dm 都已经在服务端处理过了
+    const patch = alice.waitForNextPatch();
+    alice.send("chat", { text: "我还在" });
+    await patch;
+
+    assert.strictEqual(inbox.length, 0);
+    assert.strictEqual(alice.state.messages.length, 1, "正常的公共消息不受影响");
   });
 });

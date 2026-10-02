@@ -160,6 +160,16 @@ header {
   white-space: nowrap;
 }
 
+/* 私聊视图左上角的返回按钮：轻量的描边胶囊，不抢消息的注意力 */
+header .back {
+  padding: 4px 10px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
 /* 在线成员列表 */
 .members {
   display: flex;
@@ -185,6 +195,41 @@ header {
   color: var(--accent-text);
   background: var(--accent);
   border-color: var(--accent);
+}
+
+/* 别人的名字是可以点的（点一下就开始私聊），所以用 button 渲染 */
+button.chip {
+  min-height: 0;
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: var(--bubble);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+button.chip:hover {
+  border-color: var(--accent);
+}
+
+/* 正在私聊的那个人：描边 + 浅底，和实心的"我"区分开 */
+button.chip.active {
+  color: var(--accent);
+  background: var(--bubble);
+  border-color: var(--accent);
+}
+
+/* 私聊未读数：在名字标签上挂一个小红点 */
+button.chip .badge {
+  display: inline-block;
+  min-width: 1.1em;
+  margin-left: 6px;
+  padding: 0 4px;
+  color: var(--accent-text);
+  font-size: 0.6875rem;
+  line-height: 1.1em;
+  text-align: center;
+  background: var(--error);
+  border-radius: 999px;
 }
 
 .messages {
@@ -284,6 +329,12 @@ article.mine .text {
   input,
   button {
     min-height: 44px;
+  }
+
+  /* 名字标签和私聊视图的返回按钮挤在密集的行里，给 32px 折中，不撑成 44px */
+  button.chip,
+  header .back {
+    min-height: 32px;
   }
 
   /* 窄屏上给气泡更多宽度，少折几行 */

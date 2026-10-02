@@ -1,5 +1,10 @@
 import { Room, Client, CloseCode } from "colyseus";
-import { ChatPayloadSchema, JoinOptionsSchema } from "@colyseus-chat/shared";
+import {
+  ChatPayloadSchema,
+  JoinOptionsSchema,
+  PrivateChatPayloadSchema,
+  type PrivateMessage,
+} from "@colyseus-chat/shared";
 import { ChatMessage, MyRoomState } from "./schema/MyRoomState.js";
 
 /** 房间最多保留多少条聊天记录，避免状态无限增长（新加入的人会收到这段历史） */
@@ -41,6 +46,53 @@ export class MyRoom extends Room<{ state: MyRoomState }> {
       if (this.state.messages.length > MAX_HISTORY_MESSAGES) {
         this.state.messages.shift();
       }
+    },
+
+    dm: (client: Client, payload: unknown) => {
+      /**
+       * 处理客户端的 "dm" 消息：一对一私聊，服务端只做转发。
+       *
+       * 私聊内容刻意不写进房间状态：状态是同步给全房间所有人的，写进去就等于
+       * 把私聊内容广播出去（技术上也不可能只给两个人看），所以私聊只能走事件。
+       * 代价是它不持久：不保留历史，刷新页面就没了，后加入的人也看不到。
+       *
+       * 不需要对方同意：只要对方此刻在这个房间里，就能直接发过去。
+       */
+      const parsed = PrivateChatPayloadSchema.safeParse(payload);
+      if (!parsed.success) {
+        // 和 chat 一样：校验失败只丢弃并打日志，不把客户端踢下线
+        console.warn(client.sessionId, "sent an invalid dm:", parsed.error.issues);
+        return;
+      }
+
+      const { to, text } = parsed.data;
+
+      // 不能发给自己：客户端不会给出这个入口，但服务端不能信任客户端
+      if (to === client.sessionId) {
+        console.warn(client.sessionId, "tried to dm themselves");
+        return;
+      }
+
+      // 只能发给当前还在房间里的人：对方可能刚好离开/掉线，
+      // 这时回一条 dm_error 让前端提示"对方已离开"，而不是静默丢掉
+      const target = this.clients.get(to);
+      if (target === undefined) {
+        client.send("dm_error", { to, reason: "offline" });
+        return;
+      }
+
+      const message: PrivateMessage = {
+        from: client.sessionId,
+        // 昵称一律以服务端记录为准（加入时写进 members 的那份），不采信客户端传来的名字
+        fromName: this.state.members.get(client.sessionId) ?? client.sessionId,
+        to,
+        text,
+        timestamp: Date.now(),
+      };
+
+      // 收件人一份 + 发送者自己一份（回执）：前端统一按服务器时间戳渲染
+      target.send("dm", message);
+      client.send("dm", message);
     },
   };
 

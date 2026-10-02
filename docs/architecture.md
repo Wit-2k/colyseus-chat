@@ -80,7 +80,24 @@ this.state.members.delete(client.sessionId); // onLeave
 - **没有**额外的服务端 `Map` 存昵称：同步状态本身就是唯一来源，少一处需要手动清理的重复数据；
 - 昵称非法（缺失/空/超长/非字符串）时退化为 `sessionId`，保证消息里总有可显示的名字。
 
-### 3.4 同源静态托管
+### 3.4 私聊：事件而不是同步状态
+
+公共消息写同步状态（§3.1）换来"后加入者自动拿到历史"，但同步状态是**广播给房间里所有客户端**的。
+私聊只该有两个人看到，所以它反过来：走 `client.send("dm", ...)` 点对点投递，**一行都不进 state**。
+
+```ts
+// 收件人 + 发送者各一份；from / fromName 由服务端填写，避免冒名
+target.send("dm", message);
+client.send("dm", message);
+```
+
+- 代价是**没有历史**：房间状态里没有它，刷新 / 重连 / 后加入者都拿不到，前端只在内存里按对方
+  `sessionId` 分组保存（见 §4）；
+- 收件人用 `this.clients.get(sessionId)` 查（`ClientArray` 的 O(1) 索引）；查不到说明对方已经离开，
+  回一条 `dm_error` 让前端提示，而不是静默丢弃；
+- **不需要对方同意**：没有好友关系，也没有邀请 / 接受流程，只要对方在当前房间里就能发。
+
+### 3.6 同源静态托管
 
 `app.config.ts` 的 `express` 里挂了 `express.static(client/dist)`：
 
@@ -114,6 +131,12 @@ app.use(express.static(fileURLToPath(new URL("../../client/dist", import.meta.ur
 - 服务端地址的解析顺序：`VITE_SERVER_URL` → 开发环境 `ws://localhost:2567` → 生产环境
   `window.location.origin`。SDK 会把 `https://` 自动换成 `wss://` 并保留路径，所以生产环境不需要额外配置。
 - 发送前用 `ChatPayloadSchema.safeParse` 本地校验；输入框 `maxlength` 用的是同一个 `MAX_MESSAGE_LENGTH`。
+- **私聊**：点在线成员的名字（自己的标签除外）进入和这个人的会话 —— 复用同一个消息列表，只换数据源
+  （`shownMessages` 这个 `$derived`：公共聊天室 或 当前会话），输入框变成「私聊 xxx…」，顶栏给出「返回」和
+  对方的在线状态。消息按对方 `sessionId` 分组存在内存里（`conversations`），没打开的会话累加未读数、
+  显示在名字标签上；对方离开后锁住输入框。收到 `dm` 事件时先看 `from` 是不是自己，据此定出"对方"是谁
+  （一条私聊双方都会收到，见 protocol.md §3.6）。发送时按当前模式选 `ChatPayloadSchema` 或
+  `PrivateChatPayloadSchema` 校验，两者正文规则相同。
 - **手机适配**：`#app` 用 `100dvh`（手机上地址栏收放、软键盘弹出时不会把输入区顶出屏幕），面板留白用
   `env(safe-area-inset-*)` 避开刘海和底部横条（配 `index.html` 里的 `viewport-fit=cover`）；
   ≤480px 时收窄留白、气泡放宽到 92%、输入框和按钮撑到 44px 触控高度、长昵称标签截断，
@@ -146,7 +169,10 @@ app.use(express.static(fileURLToPath(new URL("../../client/dist", import.meta.ur
 3. 非法消息（空白 / 非字符串 / 缺字段 / `null` / 超长）不写进历史；
 4. 历史只保留最近 50 条；
 5. 没传昵称时用 `sessionId` 兜底；
-6. 成员列表：有人加入会同步（顺序 = 加入顺序，后加入者也能看到完整列表），有人离开会被移除。
+6. 成员列表：有人加入会同步（顺序 = 加入顺序，后加入者也能看到完整列表），有人离开会被移除；
+7. 私聊只投给双方（第三方收不到、也不进公共历史），发送者另外拿到一份回执；
+8. 私聊目标已经离开房间时，发送者收到 `dm_error`，且不再投递；
+9. 发给自己、收件人为空 / 类型不对、正文空白 / 载荷 `null` 的私聊被丢弃，公共消息不受影响。
 
 ## 6. 线上拓扑
 
@@ -224,6 +250,8 @@ app.use(express.static(fileURLToPath(new URL("../../client/dist", import.meta.ur
 - 成员列表只有昵称，没有「正在输入」、表情、角色等扩展字段（协议里加字段是兼容变更）；
 - 没有鉴权、限流、敏感词过滤：任何人拿到域名就能进来发言；
 - 历史只存在内存里，房间销毁即丢失，重启服务也会清空；
+- 私聊不落库、也没有离线消息：对方不在线只能看到「已离开」；私聊内容和未读数只活在当前页面内存里，
+  刷新即清空（见 §3.4）；
 - `maxClients` 固定 4，没有动态房间/分房；
 - 镜像仍有约 320 MB 生产依赖，主要来自 `colyseus` 全家桶（含 uWebSockets.js、@pm2/io、ioredis 等），
   如改成直接依赖 `@colyseus/core` + `@colyseus/tools` + `@colyseus/ws-transport` 可再瘦身，

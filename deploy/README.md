@@ -18,7 +18,8 @@
 
 ```bash
 # 1. 拉代码
-git clone https://github.com/<你的账号>/colyseus-chat.git
+git clone https://github.com/Wit-2k/colyseus-chat.git    # 国内直连若报 HTTP2 framing layer 错误，先执行
+                                                          # git config --global http.version HTTP/1.1
 cd colyseus-chat
 
 # 2. 构建镜像（镜像里会跑 shared → server → client 三端构建）

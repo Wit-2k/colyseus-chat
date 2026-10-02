@@ -1,13 +1,12 @@
 {
-  "private": true,
   "name": "server",
   "version": "0.1.0",
+  "private": true,
   "description": "A Colyseus multiplayer server",
+  "license": "UNLICENSED",
+  "author": "",
   "type": "module",
   "main": "build/index.js",
-  "engines": {
-    "node": ">= 22.0.0"
-  },
   "scripts": {
     "prestart": "cd ../shared && bun run build",
     "start": "tsx watch src/index.ts",
@@ -19,8 +18,13 @@
     "test": "mocha -r tsx test/**.test.ts --exit --timeout 15000",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
-  "author": "",
-  "license": "UNLICENSED",
+  "dependencies": {
+    "@colyseus-chat/shared": "workspace:*",
+    "@colyseus/schema": "^5.0.14",
+    "@colyseus/tools": "^0.18.1",
+    "colyseus": "^0.18.2",
+    "express": "^5.2.1"
+  },
   "devDependencies": {
     "@colyseus/loadtest": "^0.18.1",
     "@colyseus/sdk": "^0.18.1",
@@ -32,11 +36,7 @@
     "tsx": "^4.21.0",
     "typescript": "^5.0.4"
   },
-  "dependencies": {
-    "@colyseus-chat/shared": "workspace:*",
-    "@colyseus/schema": "^5.0.14",
-    "@colyseus/tools": "^0.18.1",
-    "colyseus": "^0.18.2",
-    "express": "^5.2.1"
+  "engines": {
+    "node": ">= 22.0.0"
   }
 }

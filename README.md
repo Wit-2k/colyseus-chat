@@ -28,15 +28,38 @@
 
 在**仓库根目录**执行：
 
-| 命令 | 作用 |
-| --- | --- |
-| `bun install` | 安装所有子包的依赖（只需在根目录装一次） |
-| `bun run dev` | 一键启动：shared 编译监听 + 服务器 + 前端 |
-| `bun run build` | 依次编译 shared、server、client |
-| `bun run test` | 跑服务器测试 |
-| `bun run typecheck` | 三个子包的类型检查 |
+| 命令                | 作用                                      |
+| ------------------- | ----------------------------------------- |
+| `bun install`       | 安装所有子包的依赖（只需在根目录装一次）  |
+| `bun run dev`       | 一键启动：shared 编译监听 + 服务器 + 前端 |
+| `bun run build`     | 依次编译 shared、server、client           |
+| `bun run test`      | 跑服务器测试                              |
+| `bun run typecheck` | 三个子包的类型检查                        |
 
-也可以进入子目录单独操作（`cd server && bun run start`）。
+也可以进入子目录单独操作（`cd server && bun run start`、`cd client && bun run dev`）。
+
+代码质量检查用项目自带的 Vite+ 工具链（前端 `dev` / `build` 也是走 `vp`）：
+
+| 命令                | 作用                                             |
+| ------------------- | ------------------------------------------------ |
+| `vp check`          | 格式化 + lint（配置在根目录 `vite.config.ts`）   |
+| `vp check --fix`    | 同上，并自动修好可修的（git 提交钩子也是跑这个） |
+| `bun run typecheck` | 三个子包的类型检查（含 `svelte-check`）          |
+
+## 前端（client）
+
+- Svelte 5（runes）+ `@colyseus/sdk`，房间名 `my_room`（和 `server/src/app.config.ts` 注册的一致），最多 4 人。
+- 消息来自房间的**同步状态** `room.state.messages`：进房间时用 `getStateCallbacks()` 的
+  `onAdd(cb, true)` 先把房间里的历史补上，之后每条新消息也走同一个回调 —— 历史和新消息是同一套逻辑。
+- 昵称、消息内容都用共享配方（`@colyseus-chat/shared`）在本地先校验一次，规则与服务器完全一致；
+  输入框也用了同一个 `MAX_MESSAGE_LENGTH` 限制长度。
+
+服务器地址默认是 `ws://localhost:2567`，部署时用环境变量覆盖（Vite 要求 `VITE_` 前缀）：
+
+```bash
+# client/.env.production
+VITE_SERVER_URL=wss://你的域名
+```
 
 ## 部署（服务器）
 
@@ -50,3 +73,14 @@ node server/build/index.js  # 生产环境默认监听 2567，可用 PORT 覆盖
 
 注意：因为是 monorepo，部署时要把整个仓库拉过去（`server` 依赖根目录 `node_modules`
 里的 `@colyseus-chat/shared`），不能只拷 `server` 目录。
+
+## 部署（前端）
+
+`client` 编译产物是纯静态文件 `client/dist/`，用 nginx / Caddy 之类的静态服务器托管即可
+（先设置好 `VITE_SERVER_URL` 再打包，否则前端会去连 `ws://localhost:2567`）：
+
+```bash
+VITE_SERVER_URL=wss://你的域名 bun run --filter client build
+```
+
+生产环境建议给服务器配 HTTPS/WSS，否则浏览器会拦掉从 https 页面连出去的 ws 请求。

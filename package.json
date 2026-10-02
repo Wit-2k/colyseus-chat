@@ -1,7 +1,7 @@
 {
   "name": "colyseus-chat",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "description": "Colyseus + Svelte 聊天室（monorepo：shared / server / client）",
   "workspaces": [
     "shared",
@@ -12,6 +12,25 @@
     "dev": "node scripts/dev.mjs",
     "build": "bun run --filter @colyseus-chat/shared build && bun run --filter server build && bun run --filter client build",
     "test": "bun run --filter server test",
-    "typecheck": "bun run --filter @colyseus-chat/shared typecheck && bun run --filter server typecheck && bun run --filter client check"
+    "typecheck": "bun run --filter @colyseus-chat/shared typecheck && bun run --filter server typecheck && bun run --filter client check",
+    "prepare": "vp config"
+  },
+  "devDependencies": {
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "overrides": {
+    "vite": "catalog:"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "bun",
+      "version": "1.4.2",
+      "onFail": "download"
+    }
+  },
+  "catalog": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.0.0",
+    "vite-plus": "1.0.0"
   }
 }

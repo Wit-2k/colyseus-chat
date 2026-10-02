@@ -28,4 +28,3 @@ Then open http://localhost:2567 for the playground, or /monitor for the monitor.
 - `npm test`: run the mocha test suite
 - `npm run build`: compile to `build/`
 - `npm run loadtest`: connect N simulated clients with [`@colyseus/loadtest`](https://github.com/colyseus/colyseus-loadtest/)
-

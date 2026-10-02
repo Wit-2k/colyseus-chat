@@ -13,10 +13,8 @@ export const ChatMessage = schema({
 });
 
 export const MyRoomState = schema({
-
   /** 最近的聊天记录，会被同步给所有客户端 */
   messages: t.array(ChatMessage),
-
 });
 export type MyRoomState = SchemaType<typeof MyRoomState>;
 export type ChatMessage = SchemaType<typeof ChatMessage>;

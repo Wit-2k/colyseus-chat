@@ -6,15 +6,13 @@
     "moduleResolution": "NodeNext",
     "strict": true,
     "allowJs": true,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
+    "types": ["node", "mocha"],
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "useDefineForClassFields": false
   },
-  "include": [
-    "src",
-    "test"
-  ]
+  "include": ["src", "test"]
 }

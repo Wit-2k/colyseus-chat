@@ -1,16 +1,20 @@
 {
   "name": "client",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "predev": "cd ../shared && bun run build",
-    "dev": "vite",
+    "dev": "vp dev",
     "prebuild": "cd ../shared && bun run build",
-    "build": "vite build",
-    "preview": "vite preview",
+    "build": "vp build",
+    "preview": "vp preview",
     "precheck": "cd ../shared && bun run build",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"
+  },
+  "dependencies": {
+    "@colyseus-chat/shared": "workspace:*",
+    "@colyseus/sdk": "^0.18.4"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
@@ -19,9 +23,7 @@
     "svelte": "^5.57.0",
     "svelte-check": "^4.7.6",
     "typescript": "~6.0.2",
-    "vite": "^8.3.0"
-  },
-  "dependencies": {
-    "@colyseus-chat/shared": "workspace:*"
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

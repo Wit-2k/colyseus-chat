@@ -1,8 +1,5 @@
 import { Room, Client, CloseCode } from "colyseus";
-import {
-  ChatPayloadSchema,
-  JoinOptionsSchema,
-} from "@colyseus-chat/shared";
+import { ChatPayloadSchema, JoinOptionsSchema } from "@colyseus-chat/shared";
 import { ChatMessage, MyRoomState } from "./schema/MyRoomState.js";
 
 /** 房间最多保留多少条聊天记录，避免状态无限增长（新加入的人会收到这段历史） */
@@ -29,11 +26,7 @@ export class MyRoom extends Room<{ state: MyRoomState }> {
        */
       const parsed = ChatPayloadSchema.safeParse(payload);
       if (!parsed.success) {
-        console.warn(
-          client.sessionId,
-          "sent an invalid chat message:",
-          parsed.error.issues,
-        );
+        console.warn(client.sessionId, "sent an invalid chat message:", parsed.error.issues);
         return;
       }
 
@@ -53,13 +46,6 @@ export class MyRoom extends Room<{ state: MyRoomState }> {
     },
   };
 
-  onCreate(options: unknown) {
-    /**
-     * Called when a new room is created.
-     * 目前没有需要初始化的东西（消息监听通过上面的 messages 声明式注册）。
-     */
-  }
-
   onJoin(client: Client, options: unknown) {
     /**
      * Called when a client joins the room.
@@ -67,9 +53,7 @@ export class MyRoom extends Room<{ state: MyRoomState }> {
      */
     const parsed = JoinOptionsSchema.safeParse(options);
     const name =
-      parsed.success && parsed.data.name !== undefined
-        ? parsed.data.name
-        : client.sessionId;
+      parsed.success && parsed.data.name !== undefined ? parsed.data.name : client.sessionId;
 
     this.names.set(client.sessionId, name);
     console.log(client.sessionId, "joined as", name);
@@ -90,5 +74,4 @@ export class MyRoom extends Room<{ state: MyRoomState }> {
     this.names.clear();
     console.log("room", this.roomId, "disposing...");
   }
-
 }

@@ -8,7 +8,7 @@ import { MAX_MESSAGE_LENGTH } from "@colyseus-chat/shared";
 describe("MyRoom 聊天室", () => {
   let colyseus: ColyseusTestServer<typeof appConfig>;
 
-  before(async () => colyseus = await boot(appConfig));
+  before(async () => (colyseus = await boot(appConfig)));
   after(async () => colyseus.shutdown());
 
   beforeEach(async () => {

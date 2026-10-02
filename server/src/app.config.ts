@@ -13,7 +13,6 @@ import {
 import { MyRoom } from "./rooms/MyRoom.js";
 
 const server = defineServer({
-
   /**
    * Define your room handlers:
    */
@@ -29,7 +28,7 @@ const server = defineServer({
    *
    */
   routes: createRouter({
-    api_hello: createEndpoint("/api/hello", { method: "GET" }, async (ctx) => {
+    api_hello: createEndpoint("/api/hello", { method: "GET" }, async () => {
       return { message: "Hello World" };
     }),
   }),
@@ -39,7 +38,6 @@ const server = defineServer({
    * Read more: https://expressjs.com/en/starter/basic-routing.html
    */
   express: (app) => {
-
     app.get("/hi", (req, res) => {
       res.send("It's time to kick ass and chew bubblegum!");
     });
@@ -60,8 +58,7 @@ const server = defineServer({
     if (process.env.NODE_ENV !== "production") {
       app.use("/", playground());
     }
-  }
+  },
 });
 
 export default server;
-

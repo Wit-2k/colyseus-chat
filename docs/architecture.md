@@ -143,12 +143,30 @@ app.use(express.static(fileURLToPath(new URL("../../client/dist", import.meta.ur
 - 容器不对外暴露端口，只接在 `chat-net` 上，由 nginx 通过容器名访问。
 - 容器带 `--restart unless-stopped`，重启机器后自动拉起。
 
-### 镜像
+### 镜像（三个阶段）
 
-两阶段构建：build 阶段装齐全依赖并构建三端；runtime 阶段基于 `oven/bun:1-slim`，
-只 `bun install --production` 再复制三份产物（`server/build`、`shared/dist`、`client/dist`）。
-源码、测试、tsconfig 与开发工具（typescript/vite/mocha/oxlint…）都不进最终镜像
-（1.12 GB → 692 MB）。
+| 阶段   | 做什么                                                                                            | 何时重建                                                   |
+| ------ | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `deps` | 基于 `oven/bun:1-slim`，只 `bun install --production`（输入只有几份 `package.json` / `bun.lock`） | 只有依赖变化时才重建（约 17 秒）                           |
+| `app`  | 把**本机构建好的**产物装进去（`server/build`、`shared/dist`、`client/dist`）                      | 每次发布，只重放几个 COPY 层（0.1~0.2 秒）                 |
+| `all`  | 在镜像里从源码完整构建三端                                                                        | 兜底 / CI；不带 `--target` 时的默认目标（主机上 2~6 分钟） |
+
+源码、测试、tsconfig 与开发工具（typescript/vite/mocha/oxlint…）都不进最终镜像（1.12 GB → 692 MB）。
+
+### 发布流水线：为什么构建放在本机
+
+```
+本机执行 bun run release
+  ├─ 1. bun run build                本机构建三端（前端约 0.4 秒）
+  ├─ 2. 组装部署上下文                几份 package.json + 三份产物 ≈ 几百 KB
+  ├─ 3. 上传 → 主机 docker build --target app → 重启容器 → 冒烟检查
+  └─ 4. 清理本地临时目录
+```
+
+- 云主机是 2 核小机器，**同样的**前端构建在那里要 2~~6 分钟，在本机只要 0.4 秒 —— 差 300~~1000 倍；
+- 但依赖不能跨平台搬（本机 Windows vs 主机 Linux），所以依赖留在主机镜像里装、由 `deps` 层缓存；
+- 实测整条发布：**首次 64 秒**（含依赖层重建 17 秒）、**稳态 12 秒**；
+- 顺带绕开了主机直连 GitHub 不稳的问题 —— 主机上不需要 `git clone` / `git pull`，也不装构建工具链。
 
 ## 7. 三个真实踩坑记录
 

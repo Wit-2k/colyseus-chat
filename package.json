@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "release": "bun scripts/release.mjs",
     "build": "bun run --filter @colyseus-chat/shared build && bun run --filter server build && bun run --filter client build",
     "test": "bun run --filter server test",
     "typecheck": "bun run --filter @colyseus-chat/shared typecheck && bun run --filter server typecheck && bun run --filter client check",

@@ -12,37 +12,57 @@
 前端页面**不在** nginx 里：Colyseus 自己托管 `client/dist`（见 `server/src/app.config.ts`），
 所以 nginx 只是把整站流量转发给应用容器。
 
-## 首次部署
+## 日常发布（推荐）：`bun run release`
 
-在云主机上（仓库目录里）：
+在**本机**（仓库根目录）执行一条命令即可：
 
 ```bash
-# 1. 拉代码
-git clone https://github.com/Wit-2k/colyseus-chat.git    # 国内直连若报 HTTP2 framing layer 错误，先执行
-                                                          # git config --global http.version HTTP/1.1
-cd colyseus-chat
-
-# 2. 构建镜像（镜像里会跑 shared → server → client 三端构建）
-docker build -t colyseus-chat .
-
-# 3. 让 nginx 和应用容器在同一个网络里（只需做一次）
-docker network create chat-net
-docker network connect chat-net test-web
-
-# 4. 起应用容器（不对外暴露端口，只让 nginx 通过容器名访问）
-docker run -d --name chat-server --network chat-net --restart unless-stopped colyseus-chat
-
-# 5. 换上仓库里的站点配置，然后 reload
-cp deploy/nginx/go-comm.space.conf /root/nginx-conf/default.conf
-docker exec test-web nginx -t && docker exec test-web nginx -s reload
+bun run release     # 稳态约 12 秒
 ```
 
-## 更新已部署的版本
+它做四件事：
+
+1. **本机构建** shared → server → client（前端构建在本机约 0.4 秒；同样的构建在云主机要 2~6 分钟）；
+2. 组装部署上下文：几份 `package.json` + 三份产物（`server/build`、`shared/dist`、`client/dist`），约几百 KB；
+3. 通过 WSL 的 ssh 别名 `aliyun` 上传，并在主机上 `docker build --target app`（只重放几个 COPY 层）、
+   重启容器、打印冒烟结果；
+4. 清理本地临时目录。
+
+实测耗时：**首次 64 秒**（要在主机上重建依赖层，`bun install --production` 17 秒），
+**之后 12 秒**（依赖层命中缓存，产物层 0.1~0.2 秒）。
+
+依赖为什么不在本机装好一起传：本机是 Windows、主机是 Linux，`node_modules` 里有平台相关的东西，
+所以**依赖在主机镜像里装（有缓存），产物在本机构建**。
+
+## 首次部署
 
 ```bash
-cd colyseus-chat
-git pull
-docker build -t colyseus-chat .
+# ① 主机上一次性准备（网络 + nginx 站点配置）
+ssh aliyun
+docker network create chat-net
+docker network connect chat-net test-web
+# 站点配置从本机传上去（或直接从仓库复制）
+scp deploy/nginx/go-comm.space.conf aliyun:/root/nginx-conf/default.conf
+docker exec test-web nginx -t && docker exec test-web nginx -s reload
+
+# ② 本机发布（仓库根目录）—— 会自动构建、上传、装配镜像、起容器
+bun run release
+```
+
+> nginx 配置里反代的是 `chat-server:2567`，所以**先起容器再 reload** 才不会 502；
+> 顺序颠倒也没关系，`bun run release` 跑完再 `nginx -s reload` 一次即可。
+>
+> 主机不需要仓库源码：发布走的是「产物上传 + 主机装配」，主机上不跑 `git clone` 也不需要构建工具链
+> （这也正好绕开了主机直连 GitHub 不稳的问题）。
+
+## 手动部署 / 兜底（主机上没有本机构建环境时）
+
+在主机上从源码完整构建（`Dockerfile` 的 `all` 阶段，2~6 分钟）：
+
+```bash
+cd /root/colyseus-chat
+git pull                                  # 直连失败就 git config --global http.version HTTP/1.1
+docker build -t colyseus-chat .           # 不带 --target 就是 all（全量构建）
 docker rm -f chat-server
 docker run -d --name chat-server --network chat-net --restart unless-stopped colyseus-chat
 ```

@@ -38,13 +38,14 @@
 
 在**仓库根目录**执行：
 
-| 命令                | 作用                                      |
-| ------------------- | ----------------------------------------- |
-| `bun install`       | 安装所有子包的依赖（只需在根目录装一次）  |
-| `bun run dev`       | 一键启动：shared 编译监听 + 服务器 + 前端 |
-| `bun run build`     | 依次编译 shared、server、client           |
-| `bun run test`      | 跑服务器测试                              |
-| `bun run typecheck` | 三个子包的类型检查                        |
+| 命令                | 作用                                                                   |
+| ------------------- | ---------------------------------------------------------------------- |
+| `bun install`       | 安装所有子包的依赖（只需在根目录装一次）                               |
+| `bun run dev`       | 一键启动：shared 编译监听 + 服务器 + 前端                              |
+| `bun run build`     | 依次编译 shared、server、client                                        |
+| `bun run test`      | 跑服务器测试                                                           |
+| `bun run release`   | 发布到云主机（本机构建 → 上传产物 → 主机装配镜像并重启，稳态约 12 秒） |
+| `bun run typecheck` | 三个子包的类型检查                                                     |
 
 也可以进入子目录单独操作（`cd server && bun run start`、`cd client && bun run dev`）。
 
@@ -78,9 +79,10 @@ VITE_SERVER_URL=wss://另一台服务器
 Colyseus 服务提供（`chat-server` 容器）。这样 nginx 不用区分静态资源和 ws 请求 ——
 Colyseus 的 matchmaking 和 WebSocket 都在根路径上，本来就没法跟静态站并存。
 
-- 容器定义：根目录 `Dockerfile`（镜像内依次构建 shared → server → client）
+- **发布**：本机执行 `bun run release` —— 本机构建三端 → 只上传几百 KB 产物 → 主机装配镜像并重启容器（稳态约 12 秒）
+- 容器定义：根目录 `Dockerfile`（三阶段：`deps` 装依赖、`app` 装配产物、`all` 从源码全量构建兜底）
 - 站点配置：`deploy/nginx/go-comm.space.conf`（整站反代到 `chat-server:2567`）
-- 首次部署与更新步骤：见 [`deploy/README.md`](deploy/README.md)
+- 首次部署与手动兜底：见 [`deploy/README.md`](deploy/README.md)
 
 本地想验证生产形态（页面和服务器同源）：
 
@@ -89,5 +91,5 @@ bun run build
 NODE_ENV=production node server/build/index.js   # 打开 http://localhost:2567 就是构建后的页面
 ```
 
-注意：因为是 monorepo，构建和部署都要带上整个仓库（`server` 依赖 `shared` 与根目录的
-`node_modules` 布局），不能只拷 `server` 目录。
+注意：**依赖在主机镜像里装、产物在本机构建后传过去**（本机 Windows 与主机 Linux 的
+`node_modules` 不能互换），所以发布脚本只传几百 KB 产物，主机上不需要仓库源码，也不需要构建工具链。

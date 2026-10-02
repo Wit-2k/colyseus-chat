@@ -98,4 +98,33 @@ describe("MyRoom 聊天室", () => {
     assert.strictEqual(alice.state.messages.length, 1);
     assert.strictEqual(alice.state.messages[0].name, anon.sessionId);
   });
+
+  it("成员列表：有人加入会同步，离开会被移除", async () => {
+    const room = await colyseus.createRoom<MyRoomState>("my_room", {});
+    const alice = await colyseus.connectTo(room, { name: "Alice" });
+
+    // 自己进来后，列表里只有自己（key 是 sessionId，value 是昵称）
+    assert.deepStrictEqual(Object.fromEntries(alice.state.members.entries()), {
+      [alice.sessionId]: "Alice",
+    });
+
+    // Bob 加入后，Alice 这边应该看到两个成员，且顺序就是加入顺序
+    const joinPatch = alice.waitForNextPatch();
+    const bob = await colyseus.connectTo(room, { name: "Bob" });
+    await joinPatch;
+
+    assert.deepStrictEqual(Array.from(alice.state.members.keys()), [
+      alice.sessionId,
+      bob.sessionId,
+    ]);
+    assert.strictEqual(alice.state.members.get(bob.sessionId), "Bob");
+    assert.strictEqual(bob.state.members.size, 2, "后加入的人也应该看到完整成员列表");
+
+    // Bob 离开后，Alice 的列表里只剩自己
+    const leavePatch = alice.waitForNextPatch();
+    await bob.leave();
+    await leavePatch;
+
+    assert.deepStrictEqual(Array.from(alice.state.members.keys()), [alice.sessionId]);
+  });
 });

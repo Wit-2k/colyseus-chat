@@ -9,9 +9,6 @@ export class MyRoom extends Room<{ state: MyRoomState }> {
   maxClients = 4;
   state = new MyRoomState();
 
-  /** sessionId -> 昵称。玩家离开房间时记得删掉，否则会一直占用内存 */
-  private names = new Map<string, string>();
-
   messages = {
     chat: (client: Client, payload: unknown) => {
       /**
@@ -33,7 +30,8 @@ export class MyRoom extends Room<{ state: MyRoomState }> {
       this.state.messages.push(
         new ChatMessage({
           sessionId: client.sessionId,
-          name: this.names.get(client.sessionId) ?? client.sessionId,
+          // 昵称也来自同步状态（加入时写进去的），找不到就退化成 sessionId
+          name: this.state.members.get(client.sessionId) ?? client.sessionId,
           text: parsed.data.text,
           timestamp: Date.now(),
         }),
@@ -50,28 +48,30 @@ export class MyRoom extends Room<{ state: MyRoomState }> {
     /**
      * Called when a client joins the room.
      * 从加入参数里取昵称，没传或不合格时退化成 sessionId，保证一定有可显示的名字。
+     * 昵称写进同步状态里的成员列表（key 是 sessionId），客户端据此渲染在线成员。
      */
     const parsed = JoinOptionsSchema.safeParse(options);
     const name =
       parsed.success && parsed.data.name !== undefined ? parsed.data.name : client.sessionId;
 
-    this.names.set(client.sessionId, name);
+    this.state.members.set(client.sessionId, name);
     console.log(client.sessionId, "joined as", name);
   }
 
   onLeave(client: Client, code: CloseCode) {
     /**
      * Called when a client leaves the room.
+     * 从成员列表里删掉；这条变化同样会自动同步给房间里剩下的人。
      */
-    this.names.delete(client.sessionId);
+    this.state.members.delete(client.sessionId);
     console.log(client.sessionId, "left!", code);
   }
 
   onDispose() {
     /**
      * Called when the room is disposed.
+     * 房间本身连同状态一起销毁，不需要额外清理。
      */
-    this.names.clear();
     console.log("room", this.roomId, "disposing...");
   }
 }

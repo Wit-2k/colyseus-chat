@@ -15,6 +15,13 @@ export const ChatMessage = schema({
 export const MyRoomState = schema({
   /** 最近的聊天记录，会被同步给所有客户端 */
   messages: t.array(ChatMessage),
+
+  /**
+   * 房间成员列表：key 是 sessionId，value 是昵称（加入时确定）。
+   * 用 map 而不是数组，是为了有人离开时能按 sessionId 直接删掉，不用维护下标；
+   * 客户端遍历顺序就是加入顺序。
+   */
+  members: t.map("string"),
 });
 export type MyRoomState = SchemaType<typeof MyRoomState>;
 export type ChatMessage = SchemaType<typeof ChatMessage>;

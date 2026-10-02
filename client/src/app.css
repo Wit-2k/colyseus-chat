@@ -135,6 +135,28 @@ header {
   font-size: 0.875rem;
 }
 
+/* 在线成员列表 */
+.members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  padding: 2px 10px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  background: var(--bubble);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.chip.mine {
+  color: var(--accent-text);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 .messages {
   flex: 1;
   min-height: 0;

@@ -31,12 +31,18 @@
     timestamp: number;
   };
 
-  /** 房间状态里前端只用到 messages */
-  type ChatState = { messages: ChatMessageView[] };
+  /** 房间状态里前端用到的字段：聊天记录 + 成员列表 */
+  type ChatState = {
+    messages: ChatMessageView[];
+    /** sessionId -> 昵称（房间成员列表，MapSchema 解码后是 Map 形态） */
+    members: Map<string, string>;
+  };
 
   let name = $state("");
   let draft = $state("");
   let messages = $state<ChatMessageView[]>([]);
+  /** 房间成员（顺序即加入顺序，和服务端一致） */
+  let members = $state<{ sessionId: string; name: string }[]>([]);
   let status = $state<"idle" | "joining" | "joined">("idle");
   let error = $state("");
   let mySessionId = $state("");
@@ -66,9 +72,10 @@
       });
 
       const callbacks = getStateCallbacks(joined);
+      const state = callbacks(joined.state);
 
       // immediate=true：先把房间里已有的历史消息补进来，之后每来一条也会触发同一个回调
-      callbacks(joined.state).messages.onAdd((message) => {
+      state.messages.onAdd((message) => {
         messages.push({
           sessionId: message.sessionId,
           name: message.name,
@@ -76,6 +83,14 @@
           timestamp: message.timestamp,
         });
       }, true);
+
+      // 成员列表：进房间时先补上当前成员（immediate），之后有人进出分别触发下面两个回调
+      state.members.onAdd((memberName, sessionId) => {
+        members.push({ sessionId, name: memberName });
+      }, true);
+      state.members.onRemove((_memberName, sessionId) => {
+        members = members.filter((member) => member.sessionId !== sessionId);
+      });
 
       // 掉线时给个提示，别让界面一直停在"已连接"的假象里
       joined.onLeave(() => {
@@ -158,8 +173,16 @@
   {:else}
     <header>
       <strong>聊天室</strong>
-      <span class="me">我：{name}</span>
+      <span class="me">在线 {members.length} 人</span>
     </header>
+
+    <div class="members">
+      {#each members as member}
+        <span class="chip" class:mine={member.sessionId === mySessionId}>
+          {member.name}{member.sessionId === mySessionId ? "（我）" : ""}
+        </span>
+      {/each}
+    </div>
 
     <div class="messages" bind:this={listElement}>
       {#if messages.length === 0}

@@ -44,10 +44,15 @@ export const ChatMessage = schema({
   text: t.string(),
   timestamp: t.number(),
 });
-export const MyRoomState = schema({ messages: t.array(ChatMessage) });
+export const MyRoomState = schema({
+  messages: t.array(ChatMessage),
+  members: t.map("string"), // key 是 sessionId，value 是昵称
+});
 ```
 
 用的是 `@colyseus/schema` v5 的**函数式 API**（`schema({...})` + `t.array(Child)`），不是装饰器。
+集合字段的子类型要传**原始类型标记**（`t.map("string")`）或 Schema 类（`t.array(ChatMessage)`），
+传字段工厂（`t.map(t.string())`）会直接报类型错。
 聊天记录直接 `this.state.messages.push(new ChatMessage({...}))` —— 写状态就等于广播，
 而且后加入者会在初始全量状态里拿到历史，所以**没有**再调 `this.broadcast("chat", …)`：
 两条投递路径会让同一条消息重复到达。
@@ -63,9 +68,17 @@ Colyseus 0.18 提供 `validate(schema, handler)` 包装器，但它失败时的�
 
 ### 3.3 昵称与会话
 
-昵称在 `onJoin` 里由 `JoinOptionsSchema` 校验后记进 `private names: Map<sessionId, string>`，
-之后每条消息从 map 里取。`onLeave` / `onDispose` 会清理，避免长期占用内存。
-昵称非法（缺失/空/超长/非字符串）时退化为 `sessionId`，保证消息里总有可显示的名字。
+昵称在 `onJoin` 里由 `JoinOptionsSchema` 校验后**写进同步状态的成员列表**，离开时删掉：
+
+```ts
+this.state.members.set(client.sessionId, name); // onJoin
+this.state.members.delete(client.sessionId); // onLeave
+```
+
+- 客户端据此渲染「在线成员」；聊天消息的发送者名字也从这里取（有人离开后昵称随成员一起消失，
+  但历史消息里已经记下的名字不受影响）；
+- **没有**额外的服务端 `Map` 存昵称：同步状态本身就是唯一来源，少一处需要手动清理的重复数据；
+- 昵称非法（缺失/空/超长/非字符串）时退化为 `sessionId`，保证消息里总有可显示的名字。
 
 ### 3.4 同源静态托管
 
@@ -83,14 +96,18 @@ app.use(express.static(fileURLToPath(new URL("../../client/dist", import.meta.ur
 
 - **Svelte 5 runes**（`$state` / `$effect`），无额外状态库。
 - 房间实例与 DOM 引用用 `$state.raw` 存：第三方类实例被 Svelte 的深层代理包一层会带来兼容与性能问题。
-- 历史与实时消息走**同一条代码路径**：
+- 历史/实时消息、成员列表都走**同一套写法**：
 
   ```ts
-  const callbacks = getStateCallbacks(joined);
-  callbacks(joined.state).messages.onAdd((message) => { … }, true);   // immediate = true
+  const state = getStateCallbacks(joined)(joined.state);
+
+  state.messages.onAdd((message) => { … }, true); // immediate：先补历史，再收实时
+  state.members.onAdd((name, sessionId) => { … }, true); // 进房间先补齐当前成员
+  state.members.onRemove((_name, sessionId) => { … }); // 有人离开时实时移除
   ```
 
-  `immediate = true` 会把已存在的元素先回调一遍（历史），之后每条新增也会触发同一个回调（实时）。
+  `immediate = true` 会把已存在的元素先回调一遍，之后的新增也会触发同一个回调 —— 所以「历史」
+  和「实时」不需要写两套逻辑。map 类型的回调参数是 `(value, key)`（成员列表里 key 就是 sessionId）。
 
 - 往 `$state` 数组里推的是**普通对象快照**，不是 schema 实例：解码出来的实例不需要（也不应该）被
   响应式系统代理。
@@ -120,7 +137,8 @@ app.use(express.static(fileURLToPath(new URL("../../client/dist", import.meta.ur
 2. 后加入房间的人能直接拿到历史；
 3. 非法消息（空白 / 非字符串 / 缺字段 / `null` / 超长）不写进历史；
 4. 历史只保留最近 50 条；
-5. 没传昵称时用 `sessionId` 兜底。
+5. 没传昵称时用 `sessionId` 兜底；
+6. 成员列表：有人加入会同步（顺序 = 加入顺序，后加入者也能看到完整列表），有人离开会被移除。
 
 ## 6. 线上拓扑
 
@@ -195,7 +213,7 @@ app.use(express.static(fileURLToPath(new URL("../../client/dist", import.meta.ur
 
 ## 8. 已知未做（后续可选）
 
-- 房间内没有成员列表 / 在线状态（状态里只有消息数组）；
+- 成员列表只有昵称，没有「正在输入」、表情、角色等扩展字段（协议里加字段是兼容变更）；
 - 没有鉴权、限流、敏感词过滤：任何人拿到域名就能进来发言；
 - 历史只存在内存里，房间销毁即丢失，重启服务也会清空；
 - `maxClients` 固定 4，没有动态房间/分房；
